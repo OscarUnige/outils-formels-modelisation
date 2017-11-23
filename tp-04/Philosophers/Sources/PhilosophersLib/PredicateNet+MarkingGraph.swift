@@ -13,7 +13,35 @@ extension PredicateNet {
         // You may use these methods to check if you've already visited a marking, or if the model
         // is unbounded.
 
-        return nil
+        let initialMarking = PredicateMarkingNode<T>(marking: marking, successors: [:])
+        var toVisit = [initialMarking]
+        var seen = [initialMarking]
+        while !(toVisit.isEmpty) {
+            let aMarkingGraph = toVisit[0]
+            for aTransition in self.transitions {
+                aMarkingGraph.successors[aTransition] = [:]
+                let allBingings = aTransition.fireableBingings(from: aMarkingGraph.marking)
+                for aBinging in allBingings {
+                    let aSecondTransition = aTransition.fire(from: aMarkingGraph.marking, with: aBinging)
+                    if (aSecondTransition != nil) {
+                        if (seen.contains(where: { PredicateNet.greater( aSecondTransition!, $0.marking) })) {
+                            return nil
+                        }
+                        if !(seen.contains(where: { PredicateNet.equals($0.marking, aSecondTransition!) })) {
+                            let markingGraphSuccessor = PredicateMarkingNode<T>(marking: aSecondTransition!, successors: [:])
+                            aMarkingGraph.successors[aTransition]![aBinging] = markingGraphSuccessor
+                            toVisit.append(markingGraphSuccessor)
+                            seen.append(markingGraphSuccessor)
+                        } else {
+                            let index = seen.index(where: { PredicateNet.equals($0.marking, aSecondTransition!) })
+                            aMarkingGraph.successors[aTransition]![aBinging] = seen[index!]
+                        }
+                    }
+                }
+            }
+            toVisit.remove(at: 0)
+        }
+        return initialMarking
     }
 
     // MARK: Internals
